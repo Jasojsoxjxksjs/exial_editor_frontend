@@ -11,9 +11,9 @@ const Profile = ({ onClose }) => {
     });
     const [message, setMessage] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const result = updateProfile(formData);
+        const result = await updateProfile(formData);
         setMessage(result.message);
         if (result.success) {
             setIsEditing(false);

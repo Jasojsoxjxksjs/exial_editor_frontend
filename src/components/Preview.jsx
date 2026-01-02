@@ -42,7 +42,7 @@ const Preview = ({ data, fileName, metadata, onBack }) => {
             formData.append('subject', metadata.subject);
             formData.append('message', metadata.message);
 
-            const response = await fetch('http://localhost:5000/send-email', {
+            const response = await fetch('https://railway.com/project/5cf1d53e-69cd-482b-bd54-91cd30b1f2c4?environmentId=ca36a9f3-3a01-4f53-8902-ce2de965e2b9/api/send-email', {
                 method: 'POST',
                 body: formData,
             });

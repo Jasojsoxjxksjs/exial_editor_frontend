@@ -22,15 +22,26 @@ function AppContent() {
     const [authView, setAuthView] = useState('login'); // 'login' or 'register'
     const [showProfile, setShowProfile] = useState(false);
 
-    // Load recent files from localStorage on mount
+    // Load recent files from backend on mount
     useEffect(() => {
-        if (isAuthenticated) {
-            const saved = localStorage.getItem(`recentExcelFiles_${user.id}`);
-            if (saved) {
-                setRecentFiles(JSON.parse(saved));
+        const fetchFiles = async () => {
+            if (isAuthenticated) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch('https://railway.com/project/5cf1d53e-69cd-482b-bd54-91cd30b1f2c4?environmentId=ca36a9f3-3a01-4f53-8902-ce2de965e2b9/api/files', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const files = await response.json();
+                        setRecentFiles(files);
+                    }
+                } catch (error) {
+                    console.error('Error fetching files:', error);
+                }
             }
-        }
-    }, [isAuthenticated, user]);
+        };
+        fetchFiles();
+    }, [isAuthenticated]);
 
     // Save to localStorage whenever data changes
     useEffect(() => {
@@ -39,18 +50,24 @@ function AppContent() {
         }
     }, [data, metadata]);
 
-    const saveToRecent = () => {
-        const fileEntry = {
-            id: Date.now(),
-            fileName,
-            data,
-            metadata,
-            timestamp: new Date().toISOString()
-        };
-
-        const updated = [fileEntry, ...recentFiles.filter(f => f.fileName !== fileName)].slice(0, 5);
-        setRecentFiles(updated);
-        localStorage.setItem(`recentExcelFiles_${user.id}`, JSON.stringify(updated));
+    const saveToRecent = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('https://railway.com/project/5cf1d53e-69cd-482b-bd54-91cd30b1f2c4?environmentId=ca36a9f3-3a01-4f53-8902-ce2de965e2b9/api/files', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ fileName, data, metadata })
+            });
+            if (response.ok) {
+                const newFile = await response.json();
+                setRecentFiles(prev => [newFile, ...prev.filter(f => f.fileName !== fileName)].slice(0, 5));
+            }
+        } catch (error) {
+            console.error('Error saving file:', error);
+        }
     };
 
     const loadRecentFile = (file) => {
@@ -60,10 +77,19 @@ function AppContent() {
         setView('edit');
     };
 
-    const deleteRecentFile = (id) => {
-        const updated = recentFiles.filter(f => f.id !== id);
-        setRecentFiles(updated);
-        localStorage.setItem(`recentExcelFiles_${user.id}`, JSON.stringify(updated));
+    const deleteRecentFile = async (id) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`https://railway.com/project/5cf1d53e-69cd-482b-bd54-91cd30b1f2c4?environmentId=ca36a9f3-3a01-4f53-8902-ce2de965e2b9/api/files/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                setRecentFiles(prev => prev.filter(f => f.id !== id));
+            }
+        } catch (error) {
+            console.error('Error deleting file:', error);
+        }
     };
 
     const handleFileUpload = (e) => {

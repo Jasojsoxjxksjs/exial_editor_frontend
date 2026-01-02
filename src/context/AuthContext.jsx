@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
+const API_URL = 'https://railway.com/project/5cf1d53e-69cd-482b-bd54-91cd30b1f2c4?environmentId=ca36a9f3-3a01-4f53-8902-ce2de965e2b9/api/auth';
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -15,89 +16,89 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
-        }
-        setLoading(false);
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            const savedUser = localStorage.getItem('currentUser');
+
+            if (token && savedUser) {
+                // Optionally verify token with backend here
+                setUser(JSON.parse(savedUser));
+            }
+            setLoading(false);
+        };
+        checkAuth();
     }, []);
 
-    const register = (username, email, password) => {
-        // Get existing users
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const register = async (username, email, password) => {
+        try {
+            const response = await fetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            });
 
-        // Check if user already exists
-        if (users.find(u => u.email === email)) {
-            return { success: false, message: 'البريد الإلكتروني مسجل بالفعل' };
+            const data = await response.json();
+            if (!response.ok) return { success: false, message: data.message };
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            setUser(data.user);
+
+            return { success: true, message: 'تم التسجيل بنجاح' };
+        } catch (error) {
+            return { success: false, message: 'خطأ في الاتصال بالخادم' };
         }
-
-        // Create new user
-        const newUser = {
-            id: Date.now(),
-            username,
-            email,
-            password, // In production, this should be hashed!
-            createdAt: new Date().toISOString()
-        };
-
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        // Auto login after registration
-        const userWithoutPassword = { ...newUser };
-        delete userWithoutPassword.password;
-        setUser(userWithoutPassword);
-        localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-
-        return { success: true, message: 'تم التسجيل بنجاح' };
     };
 
-    const login = (email, password) => {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const user = users.find(u => u.email === email && u.password === password);
+    const login = async (email, password) => {
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
 
-        if (!user) {
-            return { success: false, message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+            const data = await response.json();
+            if (!response.ok) return { success: false, message: data.message };
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            setUser(data.user);
+
+            return { success: true, message: 'تم تسجيل الدخول بنجاح' };
+        } catch (error) {
+            return { success: false, message: 'خطأ في الاتصال بالخادم' };
         }
-
-        const userWithoutPassword = { ...user };
-        delete userWithoutPassword.password;
-        setUser(userWithoutPassword);
-        localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-
-        return { success: true, message: 'تم تسجيل الدخول بنجاح' };
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
     };
 
-    const updateProfile = (newData) => {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const userIndex = users.findIndex(u => u.id === user.id);
+    const updateProfile = async (newData) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(newData),
+            });
 
-        if (userIndex === -1) {
-            return { success: false, message: 'خطأ في تحديث البيانات' };
+            const data = await response.json();
+            if (!response.ok) return { success: false, message: data.message };
+
+            localStorage.setItem('currentUser', JSON.stringify(data));
+            setUser(data);
+
+            return { success: true, message: 'تم تحديث البيانات بنجاح' };
+        } catch (error) {
+            return { success: false, message: 'خطأ في الاتصال بالخادم' };
         }
-
-        // Check if email is already taken by another user
-        if (newData.email !== user.email && users.find(u => u.email === newData.email)) {
-            return { success: false, message: 'البريد الإلكتروني مستخدم بالفعل' };
-        }
-
-        // Update user data
-        users[userIndex] = { ...users[userIndex], ...newData };
-        localStorage.setItem('users', JSON.stringify(users));
-
-        // Update current user
-        const updatedUser = { ...users[userIndex] };
-        delete updatedUser.password;
-        setUser(updatedUser);
-        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-
-        return { success: true, message: 'تم تحديث البيانات بنجاح' };
     };
 
     const value = {

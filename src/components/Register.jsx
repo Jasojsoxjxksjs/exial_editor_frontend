@@ -10,7 +10,7 @@ const Register = ({ onSwitchToLogin }) => {
     const [error, setError] = useState('');
     const { register } = useAuth();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -29,7 +29,7 @@ const Register = ({ onSwitchToLogin }) => {
             return;
         }
 
-        const result = register(username, email, password);
+        const result = await register(username, email, password);
         if (!result.success) {
             setError(result.message);
         }
